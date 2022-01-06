@@ -12,10 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.serviceapplication.service.OidcService
 import com.example.serviceapplication.ui.theme.ServiceApplicationTheme
+import com.example.serviceapplication.utils.log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        log( "MainActivity.onCreate()")
 
         val intent = Intent( applicationContext, OidcService::class.java)
 
@@ -28,7 +31,7 @@ class MainActivity : ComponentActivity() {
             ServiceApplicationTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
-                    Greeting("Android Test ")
+                    Greeting("Android Test222 ")
                 }
             }
         }
