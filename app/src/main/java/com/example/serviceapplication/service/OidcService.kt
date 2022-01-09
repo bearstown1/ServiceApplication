@@ -12,16 +12,18 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.*
 import com.example.serviceapplication.IOidcAidlInterface
 import com.example.serviceapplication.R
+import com.example.serviceapplication.data.AppStatus
+import com.example.serviceapplication.data.model.TokenInfo
+import com.example.serviceapplication.data.repository.DataStoreRepository
+import com.example.serviceapplication.data.repository.TokenInfoRepository
 import com.example.serviceapplication.event.OidcEvent
 import com.example.serviceapplication.event.OidcEventBus
 import com.example.serviceapplication.receiver.AlarmReceiver
 import com.example.serviceapplication.utils.log
 import com.example.serviceapplication.worker.CheckLoginWorker
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import java.util.*
 import javax.inject.Inject
 
@@ -29,6 +31,12 @@ import javax.inject.Inject
 class OidcService : Service() {
     @Inject
     lateinit var oidcEventBus: OidcEventBus
+
+    @Inject
+    lateinit var dataStoreRepository: DataStoreRepository
+
+    @Inject
+    lateinit var tokenInfoRepository: TokenInfoRepository
 
     private lateinit var notificationManager: NotificationManager
     private lateinit var alarmManager: AlarmManager
@@ -59,6 +67,45 @@ class OidcService : Service() {
         startPeriodicCheckToken()
 
         setupEventBusSubscriber()
+
+        testDataStoreRepository()
+
+        monitoringTokenInfo()
+
+        scope.launch(Dispatchers.IO) {
+            val tokenInfo = TokenInfo( 1, "id", "access")
+
+            tokenInfoRepository.delete(tokenInfo = tokenInfo)
+
+            delay(1000)
+            log( "token insert")
+            tokenInfoRepository.insert(tokenInfo = tokenInfo)
+
+            delay(1000)
+
+            log( "token delete")
+            tokenInfoRepository.delete(tokenInfo = tokenInfo)
+        }
+
+    }
+
+    private fun monitoringTokenInfo() {
+        scope.launch(Dispatchers.IO) {
+            tokenInfoRepository.get().collect {
+                log( "token info: ${ it.toString()}")
+            }
+        }
+    }
+    private fun testDataStoreRepository() {
+        scope.launch(Dispatchers.IO) {
+            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGINED)
+
+            dataStoreRepository.readAppStatus.collect {
+                log("result of datastore : ${it}")
+            }
+        }
+
+
     }
 
     private fun startPeriodicCheckToken() {
@@ -130,7 +177,7 @@ class OidcService : Service() {
         )
             .setStyle(bigTextStyle)
             .setWhen(System.currentTimeMillis())
-            .setSmallIcon(R.drawable.ic_baseline_arrow_right_alt_24)
+            //.setSmallIcon(R.drawable.ic_baseline_arrow_right_alt_24)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(false)
             .setOngoing(true)
