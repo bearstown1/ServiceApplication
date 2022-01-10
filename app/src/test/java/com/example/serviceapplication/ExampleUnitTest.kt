@@ -1,6 +1,10 @@
 package com.example.serviceapplication
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.stateIn
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -132,7 +136,51 @@ class ExampleUnitTest {
     }
 
 
+    @Test
+    fun flowTest() = runBlocking{
+        println("begin")
 
+        launch {
+            for (k in 1..3){
+                println("Im blocked $k")
+            }
+        }
+
+        val foo: Flow<Int> = flow {
+            for (i in 1..3) {
+                emit(i)
+            }
+        }
+
+        foo.collect { value ->
+            println(value)
+        }
+
+        println("end")
+
+        delay(5000)
+    }
+
+    @Test
+    fun hotFlowTest() = runBlocking {
+        val stringFlow: Flow<String> = flow {
+            for (i in 0..10) {
+                println("integer: $i")
+                emit("integer: $i")
+                delay(100)
+            }
+        }
+
+        val stateFlow = stringFlow.stateIn(
+            scope = CoroutineScope(Dispatchers.IO)
+        )
+
+        delay(200)
+
+        stateFlow.collect() {
+            println("hot : ${it}")
+        }
+    }
 
 }
 

@@ -16,6 +16,7 @@ import java.io.IOException
 import javax.inject.Inject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore( name = DataStoreRepository.PREFERENCE_NAME)
+
 class DataStoreRepository @Inject constructor(
     @ApplicationContext private val context : Context
 ) {

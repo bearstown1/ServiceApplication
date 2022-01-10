@@ -58,7 +58,7 @@ class OidcService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
 
-        unregisterRestartAlarm()
+        /*unregisterRestartAlarm()
 
         createNotificationChannel()
 
@@ -67,7 +67,7 @@ class OidcService : Service() {
         startPeriodicCheckToken()
 
         setupEventBusSubscriber()
-
+*/
         testDataStoreRepository()
 
         monitoringTokenInfo()
@@ -97,14 +97,39 @@ class OidcService : Service() {
         }
     }
     private fun testDataStoreRepository() {
-        scope.launch(Dispatchers.IO) {
+/*        scope.launch(Dispatchers.IO) {
             dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGINED)
 
             dataStoreRepository.readAppStatus.collect {
-                log("result of datastore : ${it}")
+                log( "result of datastore : ${it} ")
+            }
+        }*/
+
+        scope.launch(Dispatchers.IO) {
+            log("i will login..")
+            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGINED)
+
+            delay(1000)
+
+            log("i will logout..")
+            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGOUTED)
+
+            scope.launch {
+                delay(100)
+                log("i will get status 1")
+                dataStoreRepository.readAppStatus.collect {
+                    log("result of datastore_1 : ${it}-- ${System.currentTimeMillis()}")
+                }
+            }
+
+            scope.launch {
+                delay(5000)
+                log("i will get status 2...")
+                dataStoreRepository.readAppStatus.collect {
+                    log("result of datastore_2 : ${it}-- ${System.currentTimeMillis()}")
+                }
             }
         }
-
 
     }
 
@@ -146,9 +171,6 @@ class OidcService : Service() {
         WorkManager.getInstance( applicationContext).cancelUniqueWork( CheckLoginWorker.WORKER_NAME)
     }
 
-
-
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -177,7 +199,7 @@ class OidcService : Service() {
         )
             .setStyle(bigTextStyle)
             .setWhen(System.currentTimeMillis())
-            //.setSmallIcon(R.drawable.ic_baseline_arrow_right_alt_24)
+            .setSmallIcon(R.drawable.ic_baseline_arrow_right_alt_24)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(false)
             .setOngoing(true)
