@@ -1,8 +1,8 @@
 package com.example.serviceapplication.di
 
-import com.example.serviceapplication.data.repository.TokenInfoRepository
-import com.example.serviceapplication.data.room.OidcDatabase
-import com.example.serviceapplication.data.room.dao.TokenInfoDao
+import com.example.serviceapplication.data.repository.AuthResponseInfoRepository
+import com.example.serviceapplication.data.db.OidcDatabase
+import com.example.serviceapplication.data.db.dao.AuthResponseInfoDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,13 +14,13 @@ import javax.inject.Singleton
 class RepositoryModule {
     @Provides
     @Singleton
-    fun provideTokenInfoDao( database: OidcDatabase): TokenInfoDao {
+    fun provideTokenInfoDao( database: OidcDatabase): AuthResponseInfoDao {
         return database.tokenInfoDao()
     }
 
     @Provides
     @Singleton
-    fun provideTokenInfoRepository( tokenInfoDao: TokenInfoDao): TokenInfoRepository {
-        return TokenInfoRepository( tokenInfoDao)
+    fun provideTokenInfoRepository(authResponseInfoDao: AuthResponseInfoDao): AuthResponseInfoRepository {
+        return AuthResponseInfoRepository( authResponseInfoDao)
     }
 }

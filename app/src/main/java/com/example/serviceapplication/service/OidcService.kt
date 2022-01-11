@@ -13,13 +13,15 @@ import androidx.work.*
 import com.example.serviceapplication.IOidcAidlInterface
 import com.example.serviceapplication.R
 import com.example.serviceapplication.data.AppStatus
-import com.example.serviceapplication.data.model.TokenInfo
+import com.example.serviceapplication.data.model.AuthResponseInfo
+import com.example.serviceapplication.data.net.repository.OidcServerRepository
 import com.example.serviceapplication.data.repository.DataStoreRepository
-import com.example.serviceapplication.data.repository.TokenInfoRepository
+import com.example.serviceapplication.data.repository.AuthResponseInfoRepository
 import com.example.serviceapplication.event.OidcEvent
 import com.example.serviceapplication.event.OidcEventBus
 import com.example.serviceapplication.receiver.AlarmReceiver
 import com.example.serviceapplication.utils.log
+import com.example.serviceapplication.utils.observeConnectivityAsFlow
 import com.example.serviceapplication.worker.CheckLoginWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
@@ -36,7 +38,10 @@ class OidcService : Service() {
     lateinit var dataStoreRepository: DataStoreRepository
 
     @Inject
-    lateinit var tokenInfoRepository: TokenInfoRepository
+    lateinit var authResponseInfoRepository: AuthResponseInfoRepository
+
+    @Inject
+    lateinit var oidcServerRepository: OidcServerRepository
 
     private lateinit var notificationManager: NotificationManager
     private lateinit var alarmManager: AlarmManager
@@ -68,30 +73,55 @@ class OidcService : Service() {
 
         setupEventBusSubscriber()
 */
-        testDataStoreRepository()
+        //testDataStoreRepository()
 
-        monitoringTokenInfo()
+        //monitoringTokenInfo()
 
-        scope.launch(Dispatchers.IO) {
-            val tokenInfo = TokenInfo( 1, "id", "access")
+        testServerApi()
+        monitoringNetworkState()
 
-            tokenInfoRepository.delete(tokenInfo = tokenInfo)
+        /*scope.launch(Dispatchers.IO) {
+            val tokenInfo = AuthResponseInfo( 1, "id", "access","test")
+
+            authResponseInfoRepository.delete(authResponseInfo = tokenInfo)
 
             delay(1000)
             log( "token insert")
-            tokenInfoRepository.insert(tokenInfo = tokenInfo)
+            authResponseInfoRepository.insert(authResponseInfo = tokenInfo)
 
-            delay(1000)
+            //delay(1000)
 
-            log( "token delete")
-            tokenInfoRepository.delete(tokenInfo = tokenInfo)
+            //log( "token delete")
+            //authResponseInfoRepository.delete(authResponseInfo = tokenInfo)
+        }*/
+
+    }
+
+    private fun testServerApi() {
+        scope.launch(Dispatchers.IO) {
+            val userInfo = oidcServerRepository.getUserInfo("test")
+
+            log( "user info = ${userInfo.toString()}")
+
+            val validResponse = oidcServerRepository.checkLoginWithIdToken("test")
+
+            log( "user info = ${userInfo.toString()}")
         }
+    }
 
+    // network state -------------------------------------------------------------------------------
+    fun monitoringNetworkState() {
+
+        scope.launch {
+            applicationContext.observeConnectivityAsFlow().collect {
+                log( "Network connection state : $it")
+            }
+        }
     }
 
     private fun monitoringTokenInfo() {
         scope.launch(Dispatchers.IO) {
-            tokenInfoRepository.get().collect {
+            authResponseInfoRepository.get().collect {
                 log( "token info: ${ it.toString()}")
             }
         }
