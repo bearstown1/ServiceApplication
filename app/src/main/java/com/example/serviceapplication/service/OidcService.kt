@@ -19,6 +19,7 @@ import com.example.serviceapplication.data.repository.DataStoreRepository
 import com.example.serviceapplication.data.repository.AuthResponseInfoRepository
 import com.example.serviceapplication.event.OidcEvent
 import com.example.serviceapplication.event.OidcEventBus
+import com.example.serviceapplication.notification.getNotification
 import com.example.serviceapplication.receiver.AlarmReceiver
 import com.example.serviceapplication.utils.log
 import com.example.serviceapplication.utils.observeConnectivityAsFlow
@@ -53,6 +54,10 @@ class OidcService : Service() {
         private const val CHANNEL_NAME: String = "BANDI_OIDC_CHANNEL"
 
         const val SERVICE_ID: Int = 1
+
+        const val APP_STATUS_KEY = "APP_STATUS"
+
+        var IS_RUNNING: Boolean = false
     }
 
     override fun onCreate() {
@@ -63,22 +68,22 @@ class OidcService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
 
-        /*unregisterRestartAlarm()
+        unregisterRestartAlarm()
 
         createNotificationChannel()
 
         isNotificationChannelEnabled()
 
-        startPeriodicCheckToken()
+/*        startPeriodicCheckToken()
 
-        setupEventBusSubscriber()
-*/
+        setupEventBusSubscriber()*/
+
         //testDataStoreRepository()
 
         //monitoringTokenInfo()
 
-        testServerApi()
-        monitoringNetworkState()
+        //testServerApi()
+        // monitoringNetworkState()
 
         /*scope.launch(Dispatchers.IO) {
             val tokenInfo = AuthResponseInfo( 1, "id", "access","test")
@@ -222,19 +227,15 @@ class OidcService : Service() {
 
         log("OidcService.onStartCommand()")
 
-        val bigTextStyle = NotificationCompat.BigTextStyle().setBigContentTitle("빅컨텐츠타이틀").bigText("빅텍스트")
+        if(IS_RUNNING == false ) {
+            val appStatus = intent?.getStringExtra(APP_STATUS_KEY)
 
-        val notificationBuilder = NotificationCompat.Builder(
-            applicationContext, CHANNEL_ID
-        )
-            .setStyle(bigTextStyle)
-            .setWhen(System.currentTimeMillis())
-            .setSmallIcon(R.drawable.ic_baseline_arrow_right_alt_24)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(false)
-            .setOngoing(true)
+            appStatus?.let {
+                startForeground(SERVICE_ID, getNotification(applicationContext, appStatus))
+            }
 
-        startForeground(SERVICE_ID, notificationBuilder.build())
+            IS_RUNNING = true
+        }
 
         return START_STICKY
     }

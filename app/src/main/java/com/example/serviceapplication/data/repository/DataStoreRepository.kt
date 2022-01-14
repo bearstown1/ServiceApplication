@@ -41,7 +41,7 @@ class DataStoreRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            val appStatus = preferences[ PreferenceKeys.appStatusKey] ?: AppStatus.SETUP.name
+            val appStatus = preferences[ PreferenceKeys.appStatusKey] ?: AppStatus.INIT.name
             appStatus
         }
 

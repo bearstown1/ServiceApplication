@@ -1,7 +1,7 @@
 package com.example.serviceapplication.data
 
 enum class AppStatus {
-    SETUP,
+    INIT,
     REGISTERED,
     LOGINED,
     LOGOUTED

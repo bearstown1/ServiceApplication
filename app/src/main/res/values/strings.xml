@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">ServiceApplication</string>
+    <string name="msg_logined">You are Logined</string>
+    <string name="msg_logouted">You are LogOuted</string>
+    <string name="msg_need_setup">You need to register app</string>
+    <string name="msg_registered">Registered</string>
+
+    <string name="app_status">Status</string>
+
+    <string name="open_app">Open App</string>
+    <string name="open_setup">Setup</string>
+
+    <string name="title">OIDC</string>
+    <string name="setup">Setup</string>
+    <string name="userInfo">UserInfo</string>
+    <string name="login">Login</string>
+    <string name="logout">LogOut</string>
+
 </resources>
