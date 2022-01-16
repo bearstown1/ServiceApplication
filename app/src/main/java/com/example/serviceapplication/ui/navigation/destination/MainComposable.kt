@@ -10,6 +10,7 @@ fun NavGraphBuilder.mainComposable(
     oidcViewModel: OidcViewModel,
     navigateToSetup: () -> Unit,
     navigateToUserInfo: () -> Unit,
+    navigateToFaq: () -> Unit,
     loginBtnClicked: () -> Unit,
     logoutBtnClicked: () -> Unit,
 ) {
@@ -21,6 +22,7 @@ fun NavGraphBuilder.mainComposable(
             oidcViewModel = oidcViewModel,
             navigateToSetup = navigateToSetup,
             navigateToUserInfo = navigateToUserInfo,
+            navigateToFaq = navigateToFaq,
             loginBtnClicked = loginBtnClicked,
             logoutBtnClicked = logoutBtnClicked,
         )

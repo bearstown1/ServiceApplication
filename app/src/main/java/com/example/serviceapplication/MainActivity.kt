@@ -13,6 +13,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHost
@@ -25,6 +26,7 @@ import com.example.serviceapplication.notification.ACTION_TYPE_VALUE_LOGOUT
 import com.example.serviceapplication.notification.getNotification
 import com.example.serviceapplication.service.OidcService
 import com.example.serviceapplication.ui.navigation.NavigationHost
+import com.example.serviceapplication.ui.navigation.Navigator
 import com.example.serviceapplication.ui.theme.ServiceApplicationTheme
 import com.example.serviceapplication.utils.ConnectionState
 import com.example.serviceapplication.utils.currentConnectivityState
@@ -32,13 +34,11 @@ import com.example.serviceapplication.utils.log
 import com.example.serviceapplication.utils.observeConnectivityAsFlow
 import com.example.serviceapplication.viewModel.OidcViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.launch
 
+@ExperimentalComposeUiApi
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -85,10 +85,10 @@ class MainActivity : ComponentActivity() {
 
                         changeAppStatus( AppStatus.LOGOUTED)
                     },
-                    saveUrlBtnClicked = {
+                    saveOidcServerUrlBtnClicked  = {
                         log( "save url button is clicked###")
 
-                        changeAppStatus( AppStatus.REGISTERED)
+                        saveOidcServerUrl()
                     }
                 )
             }
@@ -170,6 +170,25 @@ class MainActivity : ComponentActivity() {
             oidcViewModel.changeAppStatus( appStatus = appStatus)
         }
     }
+
+    // -- Register Server url-----------------------------------------------------------------------
+    private fun saveOidcServerUrl() {
+
+        coroutineScope.launch {
+
+            oidcViewModel.isShowProgressBar.value = true
+
+            delay(100)
+
+            oidcViewModel.saveOidcServerUrl()
+
+            oidcViewModel.changeAppStatus( appStatus = AppStatus.REGISTERED)
+
+            oidcViewModel.isShowProgressBar.value = false
+
+            navController.navigate( Navigator.SCREEN_MAIN)
+        }
+    }
 }
 
 @Composable
@@ -222,4 +241,6 @@ fun ConnectivityStatus() {
     } else {
         Text(text = "Network is Unavailable@@")
     }
+
 }
+

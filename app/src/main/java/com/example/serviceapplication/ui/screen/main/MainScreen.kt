@@ -1,108 +1,109 @@
 package com.example.serviceapplication.ui.screen.main
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material.Button
-import androidx.compose.material.Text
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
+import com.example.serviceapplication.R
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import com.example.serviceapplication.data.AppStatus
-import com.example.serviceapplication.ui.component.ColumnDivider
-import com.example.serviceapplication.utils.ConnectionState
-import com.example.serviceapplication.utils.currentConnectivityState
-import com.example.serviceapplication.utils.observeConnectivityAsFlow
+import com.example.serviceapplication.ui.theme.fabBackgroundColor
 import com.example.serviceapplication.viewModel.OidcViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
     oidcViewModel: OidcViewModel,
     navigateToSetup: () -> Unit,
     navigateToUserInfo: () -> Unit,
+    navigateToFaq: () -> Unit,
     loginBtnClicked: () -> Unit,
     logoutBtnClicked: () -> Unit,
 ) {
-    val appStatus by oidcViewModel.appStatus.collectAsState()
 
-    Column() {
-        Text(text = "main - ${ appStatus.name}")
+    val scaffoldState = rememberScaffoldState()
 
-        ColumnDivider()
+    DisplaySnackBar(
+        scaffoldState =  scaffoldState,
+        oidcViewModel = oidcViewModel
+    )
 
-        ConnectivityStatus()
-
-        ColumnDivider()
-
-        Button(onClick = {
-            navigateToSetup()
-        }) {
-            Text(text = "goToSetup")
+    Scaffold (
+        scaffoldState = scaffoldState,
+        topBar = {
+            MainAppBar(
+                oidcViewModel = oidcViewModel,
+                navigateToSetup = navigateToSetup,
+                navigateToUserInfo = navigateToUserInfo,
+                loginBtnClicked = loginBtnClicked,
+                logoutBtnClicked = logoutBtnClicked,
+            )
+        },
+        content = {
+            MainContent(
+                oidcViewModel = oidcViewModel
+            )
+        },
+        floatingActionButton = {
+            MainFab( onFabClicked = navigateToFaq)
         }
-
-        ColumnDivider()
-
-        if (AppStatus.INIT != appStatus) {
-            if (AppStatus.REGISTERED == appStatus || AppStatus.LOGOUTED == appStatus) {
-                Button(onClick = { loginBtnClicked()}) {
-                    Text(text = "login")
-                }
-                ColumnDivider()
-            }
-
-            if (AppStatus.LOGINED == appStatus) {
-
-                Button(onClick = {
-                    navigateToUserInfo()
-                }) {
-                    Text(text = "goToUserInfo")
-                }
-
-                ColumnDivider()
-
-                Button(onClick = {
-                    logoutBtnClicked()
-                }) {
-                    Text(text = "logout")
-                }
-
-                ColumnDivider()
-            }
-        }
-
-    }
-
+    )
 
 }
 
 @Composable
-fun currentConnectionState(): ConnectionState {
-    val context = LocalContext.current
-    return remember { context.currentConnectivityState }
-}
-
-@ExperimentalCoroutinesApi
-@Composable
-fun connectivityState(): State<ConnectionState> {
-    val context = LocalContext.current
-    return produceState(initialValue = context.currentConnectivityState) {
-        context.observeConnectivityAsFlow().distinctUntilChanged().collect {
-            value = it
-        }
+fun MainFab(
+    onFabClicked: () -> Unit
+) {
+    FloatingActionButton(
+        onClick = {
+            onFabClicked()
+        },
+        backgroundColor = MaterialTheme.colors.fabBackgroundColor
+    ) {
+        Icon( imageVector = Icons.Filled.Add,
+            contentDescription = stringResource(id = R.string.faq),
+            tint = Color.White
+        )
     }
 }
 
-@ExperimentalCoroutinesApi
 @Composable
-fun ConnectivityStatus() {
-    // This will cause re-composition on every network state change
-    val connection by connectivityState()
+fun DisplaySnackBar(
+    scaffoldState: ScaffoldState,
+    oidcViewModel: OidcViewModel
+) {
 
-    val isConnected = connection === ConnectionState.Available
+    val loginStatus by oidcViewModel.appStatus.collectAsState()
 
-    if (isConnected) {
-        Text(text = "Network is Available!!")
-    } else {
-        Text(text = "Network is Unavailable@@")
+    val scope = rememberCoroutineScope()
+
+    val label = stringResource(id = R.string.ok)
+
+    val message =  when ( loginStatus) {
+        AppStatus.LOGINED -> stringResource(id = R.string.msg_logined)
+        AppStatus.LOGOUTED -> stringResource(id = R.string.msg_logouted)
+        else -> ""
+    }
+
+    val showSnackBar by oidcViewModel.showSnackBar
+
+    if ( message != "") {
+
+        LaunchedEffect(key1 = loginStatus) {
+
+            if (showSnackBar) {
+
+                scope.launch {
+                    scaffoldState.snackbarHostState.showSnackbar(
+                        message = message,
+                        actionLabel = label
+                    )
+
+                    oidcViewModel.showSnackBar.value = false
+                }
+            }
+        }
     }
 }

@@ -16,4 +16,46 @@
     <string name="login">Login</string>
     <string name="logout">LogOut</string>
 
+
+    <!-- confirm-->
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+
+    <!-- common -->
+    <string name="back_arrow">Back Arrow</string>
+
+    <!-- setup -->
+    <string name="url">Identity Server Url</string>
+    <string name="update_icon">Update Icon</string>
+    <string name="init_icon">Init Icon</string>
+    <string name="init_setup">Init server url</string>
+    <string name="init_setup_confirmation">Are you sure you want to init Identity Server Url?</string>
+
+    <string name="error_server_url_empty">Identity Server Url is empty</string>
+    <string name="error_server_url_format">Identity Server Url format is invalid</string>
+
+    <string name="error_server_url_invalid">Identity Server Url invalid Error</string>
+    <string name="error_server_url_invalid_desc">Identity Server Url is incorrect or server is down</string>
+
+    <string name="error_server_configuration_invalid">Identity Server Configuration Error</string>
+    <string name="error_server_configuration_invalid_desc">No authorization endpoint is configured in the Identity Server</string>
+
+    <string name="confirm_change_server_url">Change Server Url</string>
+    <string name="confirm_change_server_url_confirmation">
+        Are you sure you want to change server url?
+        Then, you have to login again
+    </string>
+
+    <!-- Main -->
+    <string name="more">more</string>
+    <string name="faq">FAQ</string>
+
+    <string name="confirm_logout_title">Logout</string>
+    <string name="confirm_logout_confirmation">Are you sure you want to logout?</string>
+
+
+    <!-- snack bar -->
+    <string name="ok">OK</string>
+
+
 </resources>

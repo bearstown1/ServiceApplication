@@ -22,6 +22,7 @@ class DataStoreRepository @Inject constructor(
 ) {
     private object PreferenceKeys {
         val appStatusKey = stringPreferencesKey(name = PREFERENCE_KEY_APP_STATUS)
+        val oidcServerUrlKey = stringPreferencesKey( name = PREFERENCE_KEY_OIDC_SERVER_URL)
     }
 
     private val dataStore = context.dataStore
@@ -45,12 +46,31 @@ class DataStoreRepository @Inject constructor(
             appStatus
         }
 
+    suspend fun persistOidcServerUrl( url: String) {
+        dataStore.edit { preference ->
+            preference[ PreferenceKeys.oidcServerUrlKey] = url
+        }
+    }
+
+    val readOidcServerUrl: Flow<String?> = dataStore.data
+        .catch { exception ->
+            if( exception is IOException) {
+                emit( emptyPreferences())
+            } else{
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[ PreferenceKeys.oidcServerUrlKey] ?: null
+        }
+
 
 
 
     companion object {
         const val PREFERENCE_NAME               = "BANDI_OIDC_PREFERENCES"
         const val PREFERENCE_KEY_APP_STATUS     = "KEY_APP_STATUS"
+        const val PREFERENCE_KEY_OIDC_SERVER_URL    = "KEY_OIDC_SERVER_URL"
     }
 
 }

@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.core.app.NotificationCompat
 import com.example.serviceapplication.MainActivity
 import com.example.serviceapplication.R
@@ -15,6 +16,7 @@ const val ACTION_TYPE_VALUE_OPEN_APP        = "AT_VALUE_OPEN_APP"
 const val ACTION_TYPE_VALUE_LOGIN           = "AT_VALUE_LOGIN"
 const val ACTION_TYPE_VALUE_LOGOUT          = "AT_VALUE_LOGOUT"
 
+@ExperimentalComposeUiApi
 fun getNotification(context: Context, appStatus: String?) : Notification {
     var description:String? = null
     var smallIcon :Int = -1
@@ -80,7 +82,7 @@ fun getNotification(context: Context, appStatus: String?) : Notification {
     return notification
 }
 
-
+@ExperimentalComposeUiApi
 fun getLoginAction(context: Context) : NotificationCompat.Action {
     val intent = getMainActivityIntent(context = context)
     intent.putExtra(ACTION_TYPE_KEY, ACTION_TYPE_VALUE_LOGIN)
@@ -93,6 +95,7 @@ fun getLoginAction(context: Context) : NotificationCompat.Action {
     )
 }
 
+@ExperimentalComposeUiApi
 fun getLogoutAction(context: Context): NotificationCompat.Action {
 
     val intent = getMainActivityIntent(context = context)
@@ -106,7 +109,7 @@ fun getLogoutAction(context: Context): NotificationCompat.Action {
     )
 }
 
-
+@ExperimentalComposeUiApi
 fun getOpenMainScreenAction(context: Context) : NotificationCompat.Action {
     val intent =getMainActivityIntent(context = context)
     intent.putExtra(ACTION_TYPE_KEY, ACTION_TYPE_VALUE_OPEN_APP)
@@ -119,6 +122,7 @@ fun getOpenMainScreenAction(context: Context) : NotificationCompat.Action {
     )
 }
 
+@ExperimentalComposeUiApi
 private fun getMainActivityIntent( context: Context): Intent {
     val intent = Intent( context, MainActivity::class.java)
     intent.addCategory( Intent.CATEGORY_LAUNCHER)

@@ -1,42 +1,86 @@
 package com.example.serviceapplication.ui.screen.setup
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material.Button
-import androidx.compose.material.Text
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.material.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.example.serviceapplication.ui.component.ColumnDivider
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalContext
+import com.example.serviceapplication.ui.component.BackHandler
 import com.example.serviceapplication.viewModel.OidcViewModel
 
+@ExperimentalComposeUiApi
 @Composable
 fun SetupScreen(
     oidcViewModel: OidcViewModel,
     navigateToMain: () -> Unit,
-    saveUrlBtnClicked: () -> Unit
+    saveOidcServerUrlBtnClicked: () -> Unit
 ) {
-    val appStatus by oidcViewModel.appStatus.collectAsState()
+    val context = LocalContext.current
 
-    Column() {
-        Text(text = "setup - ${ appStatus.name}")
+    val oidcServerUrl by oidcViewModel.oidcServerUrl
 
-        ColumnDivider()
+    BackHandler( onBackPressed = navigateToMain)
 
-        Button(onClick = {
-            navigateToMain()
-        }) {
-            Text(text = "goToMain")
+    Scaffold(
+        topBar = {
+            SetupAppBar(
+                oidcViewModel = oidcViewModel,
+                navigateToMain = navigateToMain,
+                saveOidcServerUrlBtnClicked = {
+                    updateSetupInfo(
+                        oidcViewModel = oidcViewModel,
+                        saveOidcServerUrlBtnClicked = saveOidcServerUrlBtnClicked,
+                        context = context
+                    )
+                }
+            )
+        },
+        content = {
+            SetupContent (
+                oidcServerUrl = oidcServerUrl,
+                onOidcServerUrlChange = {
+                    oidcViewModel.updateOidcServerUrlAtScreen( it)
+                },
+                setupErrorTitle = oidcViewModel.setupErrorTitle.value,
+                setupErrorDesc = oidcViewModel.setupErrorDesc.value,
+                isShowProgressBar = oidcViewModel.isShowProgressBar.value,
+                saveOidcServerUrlBtnClicked = {
+                    updateSetupInfo(
+                        oidcViewModel = oidcViewModel,
+                        saveOidcServerUrlBtnClicked = saveOidcServerUrlBtnClicked,
+                        context = context
+                    )
+                }
+            )
         }
+    )
+}
 
-        ColumnDivider()
+fun updateSetupInfo(
+    oidcViewModel: OidcViewModel,
+    context: Context,
+    saveOidcServerUrlBtnClicked: () -> Unit){
 
-        Button(onClick = {
-            saveUrlBtnClicked()
-        }) {
-            Text(text = "saveUrl")
-        }
+    val errorMsg = oidcViewModel.validateOidcServerUrl()
 
-        ColumnDivider()
+    if ( errorMsg == null) {
 
+        oidcViewModel.initSetupError()
+
+        saveOidcServerUrlBtnClicked()
+
+    } else {
+        displayToast( context, errorMsg)
     }
+}
+
+
+fun displayToast(context: Context, errorMsg: String) {
+    Toast.makeText(
+        context,
+        errorMsg,
+        Toast.LENGTH_SHORT
+    ).show()
 }
