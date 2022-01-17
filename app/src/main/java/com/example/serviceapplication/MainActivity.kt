@@ -9,14 +9,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.NavHost
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.serviceapplication.data.AppStatus
@@ -101,12 +98,41 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
 
-        val actionType = intent.getStringExtra(ACTION_TYPE_KEY)
+        // Notification 으로 부터 발생한 Action
+        val actionType = intent.getStringExtra( ACTION_TYPE_KEY)
         if (actionType != null) {
             // notification 으로부터의 Action 처리
             handleByNotificationAction( actionType = actionType)
         }
+
+        // 다른 앱으로부터 발생한 Action을 BroadCastReceiver를 통해 요청된 경우
+        val remoteActionType = intent.getStringExtra("remote_action_type")
+        if ( remoteActionType != null) {
+            handleByClientApp( remoteActionType)
+        }
     }
+
+    private fun handleByClientApp( remoteActionType: String) {
+
+        // todo: 앱이 등록되어 있지 않을 경우 처리
+
+        if( "com.example.serviceapplication.REMOTE_ACTION_LOGIN" == remoteActionType) {
+            if (oidcViewModel.appStatus.value == AppStatus.LOGINED) {
+                // nothing todo
+            } else {
+
+                log( "login requested by broadcast receiver !!")
+                changeAppStatus( AppStatus.LOGINED)
+
+            }
+        } else if( "com.example.serviceapplication.REMOTE_ACTION_LOGOUT" == remoteActionType) {
+
+            log( "logout requested by broadcast receiver @@")
+            changeAppStatus( AppStatus.LOGOUTED)
+
+        }
+    }
+
 
     private fun observeAppStatus() {
 
@@ -125,15 +151,38 @@ class MainActivity : ComponentActivity() {
                     }
 
                     AppStatus.LOGINED -> {
+                        sendLoginBroadcast()
                         notifyAppStatus( appStatus)
                     }
 
                     AppStatus.LOGOUTED -> {
+                        sendLogoutBroadcast()
                         notifyAppStatus( appStatus)
                     }
                 }
             }
         }
+    }
+
+    private fun sendLoginBroadcast() {
+
+        val intent = Intent()
+
+        intent.action = "com.example.serviceapplication.BANDI_OIDC_LOGIN"
+
+        // todo : 실제 Token 값 등을 보내야 함.
+        intent.putExtra("ID_TOKEN", "TEST_ID_TOKEN")
+
+        sendBroadcast(intent)
+
+    }
+
+    private fun sendLogoutBroadcast() {
+
+        val intent = Intent()
+        intent.action = "com.example.serviceapplication.BANDI_OIDC_LOGOUT"
+
+        sendBroadcast(intent)
     }
 
     private fun notifyAppStatus( appStatus: AppStatus) {

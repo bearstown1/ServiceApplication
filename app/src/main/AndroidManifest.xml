@@ -39,8 +39,8 @@
             android:exported="true">
 
             <intent-filter>
-                <action android:name="com.bandisnc.mobile.oidc.REMOTE_ACTION_LOGIN" />
-                <action android:name="com.bandisnc.mobile.oidc.REMOTE_ACTION_LOGOUT" />
+                <action android:name="com.example.serviceapplication.REMOTE_ACTION_LOGIN" />
+                <action android:name="com.example.serviceapplication.REMOTE_ACTION_LOGOUT" />
             </intent-filter>
         </receiver>
 
