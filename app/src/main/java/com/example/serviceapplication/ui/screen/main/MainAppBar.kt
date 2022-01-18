@@ -59,6 +59,7 @@ fun MainAppBar(
             MoreAction(
                 loginStatus = appStatus,
                 setupClicked = {
+                    oidcViewModel.oidcServerUrl.value = oidcViewModel.savedOidcServerUrl.toString()
 
                     navigateToSetup()
                 },

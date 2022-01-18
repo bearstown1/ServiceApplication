@@ -43,12 +43,15 @@ class OidcViewModel @Inject constructor(
 
                 if (it != null) {
                     oidcServerUrl.value = it
+
+                    savedOidcServerUrl = it
                 }
             }
         }
     }
 
     val oidcServerUrl: MutableState<String> = mutableStateOf( "")
+    var savedOidcServerUrl:String? = ""
 
     // Setup ProgressBar ---------------------------------------------------------------------------
     val isShowProgressBar = mutableStateOf(false)

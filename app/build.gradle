@@ -20,6 +20,11 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+
+        // com.bandi.aars 변경할 경우, ApplicationConfig.kt의 멤버변수값들과, bds_cm_client_uri 테이블의 레코드 중 uri_type 이 "AUTH_RESULT"인 레코드의 redirect_uri도 함께 변경해 주어야 함.
+        manifestPlaceholders = [
+                'appAuthRedirectScheme': 'com.example.serviceapplication.aars'
+        ]
     }
 
     buildTypes {
@@ -92,4 +97,6 @@ dependencies {
 
     implementation "androidx.navigation:navigation-compose:2.4.0-rc01"
 
+    // APPAuth
+    implementation 'net.openid:appauth:0.10.0'
 }
