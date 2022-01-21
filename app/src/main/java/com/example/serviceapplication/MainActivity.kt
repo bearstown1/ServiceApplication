@@ -1,12 +1,17 @@
 package com.example.serviceapplication
 
+import android.app.Activity
 import android.app.NotificationManager
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.Text
@@ -14,14 +19,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.serviceapplication.data.AppStatus
+import com.example.serviceapplication.data.model.AuthResponseInfo
+import com.example.serviceapplication.data.repository.AuthResponseInfoRepository
+import com.example.serviceapplication.data.repository.DataStoreRepository
 import com.example.serviceapplication.notification.ACTION_TYPE_KEY
 import com.example.serviceapplication.notification.ACTION_TYPE_VALUE_LOGIN
 import com.example.serviceapplication.notification.ACTION_TYPE_VALUE_LOGOUT
 import com.example.serviceapplication.notification.getNotification
 import com.example.serviceapplication.service.OidcService
+import com.example.serviceapplication.appauth.OidcConfig
+import com.example.serviceapplication.appauth.OidcHandler
 import com.example.serviceapplication.ui.navigation.NavigationHost
 import com.example.serviceapplication.ui.navigation.Navigator
 import com.example.serviceapplication.ui.theme.ServiceApplicationTheme
@@ -34,6 +45,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import net.openid.appauth.AuthorizationException
+import net.openid.appauth.AuthorizationResponse
+import javax.inject.Inject
 
 @ExperimentalComposeUiApi
 @AndroidEntryPoint
@@ -41,11 +55,18 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var navController: NavHostController
 
-    private val coroutineScope = CoroutineScope( Dispatchers.Main.immediate)
-
     private val oidcViewModel: OidcViewModel by viewModels()
 
     private var notificationManager: NotificationManager? = null
+
+    @Inject
+    lateinit var dataStoreRepository: DataStoreRepository
+
+    @Inject
+    lateinit var oidcHandler: OidcHandler
+
+    @Inject
+    lateinit var authResponseInfoRepository: AuthResponseInfoRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,12 +96,12 @@ class MainActivity : ComponentActivity() {
                     loginBtnClicked = {
                         log("login button is clicked")
 
-                        changeAppStatus( AppStatus.LOGINED)
+                        startLogin()
                     },
                     logoutBtnClicked = {
                         log( "logout button is clicked@@@")
 
-                        changeAppStatus( AppStatus.LOGOUTED)
+                        startLogout()
                     },
                     saveOidcServerUrlBtnClicked  = {
                         log( "save url button is clicked###")
@@ -94,6 +115,68 @@ class MainActivity : ComponentActivity() {
         observeAppStatus()
 
     }
+
+    // -- Register Server url-----------------------------------------------------------------------
+    private fun saveOidcServerUrl() {
+        lifecycleScope.launch {
+            oidcViewModel.isShowProgressBar.value = true
+
+            delay(100)
+
+            OidcConfig.issuer = Uri.parse(oidcViewModel.oidcServerUrl.value)
+
+            oidcHandler.registerIfRequired { response, ex ->
+                when {
+                    response != null -> {
+
+                        if (response.authorizationEndpoint == null) {
+                            // 네트워크 연결은 되어 있으나, 서버 측 .well-known/openid-configuration 에서 값 설정이 안된 경우.
+                            oidcViewModel.setSetupError(
+                                getString( R.string.error_server_configuration_invalid),
+                                getString( R.string.error_server_configuration_invalid_desc)
+                            )
+
+                        } else {
+
+                            lifecycleScope.launch {
+
+                                // register작업이 끝나면, url을 saved url로도 저장해서, 화면 이동 시 초기값으로 사용
+                                oidcViewModel.saveOidcServerUrl()
+
+                                // 서버측 metadata 저장. 이후 프로세스에서 사용됨.
+                                oidcHandler.saveMetaData( response.toJsonString())
+
+                                // 상태가 로그인이었다면 화면 이동 전에 로그아웃 Broadcasting을 전파해야 함.
+                                if( oidcViewModel.appStatus.value == AppStatus.LOGINED) {
+                                    // todo: 로그아웃되면서 불필요한 정보들 날리기
+                                    // oidcViewModel.saveAccessToken( null)
+                                    // oidcViewModel.saveIdToken( null)
+
+                                    sendLogoutBroadcast()
+                                }
+
+                                oidcViewModel.changeAppStatus( appStatus = AppStatus.REGISTERED)
+
+                                navController.navigate(Navigator.SCREEN_MAIN)
+                            }
+                        }
+                    }
+                    else -> {
+                        // 네트워크 연결이 되어 있지 않은 경우
+                        oidcViewModel.setSetupError(
+                            getString(R.string.error_server_url_invalid),
+                            getString(R.string.error_server_url_invalid_desc)
+                        )
+                    }
+                }
+
+                oidcViewModel.isShowProgressBar.value = false
+            }
+
+
+        }
+    }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -120,23 +203,20 @@ class MainActivity : ComponentActivity() {
             if (oidcViewModel.appStatus.value == AppStatus.LOGINED) {
                 // nothing todo
             } else {
-
                 log( "login requested by broadcast receiver !!")
-                changeAppStatus( AppStatus.LOGINED)
+                startLogin()
 
             }
         } else if( "com.example.serviceapplication.REMOTE_ACTION_LOGOUT" == remoteActionType) {
-
             log( "logout requested by broadcast receiver @@")
-            changeAppStatus( AppStatus.LOGOUTED)
-
+            startLogout()
         }
     }
 
 
     private fun observeAppStatus() {
 
-        coroutineScope.launch {
+        lifecycleScope.launch {
 
             oidcViewModel.appStatus.collect { appStatus ->
 
@@ -204,40 +284,110 @@ class MainActivity : ComponentActivity() {
         if( ACTION_TYPE_VALUE_LOGIN == actionType) {
 
             log( "login requested!!")
-            changeAppStatus( AppStatus.LOGINED)
+            startLogout()
 
         } else if ( ACTION_TYPE_VALUE_LOGOUT == actionType) {
 
             log( "logout requested@@")
-            changeAppStatus( AppStatus.LOGOUTED)
+            startLogout()
         }
     }
 
 
     private fun changeAppStatus( appStatus: AppStatus) {
-        coroutineScope.launch {
+        lifecycleScope.launch {
             oidcViewModel.changeAppStatus( appStatus = appStatus)
         }
     }
 
-    // -- Register Server url-----------------------------------------------------------------------
-    private fun saveOidcServerUrl() {
+    private var loginLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> {}
 
-        coroutineScope.launch {
+        // openLoginBrowserForResult() 호출로 ChromTab으로 실제 로그인 수행 후, 로그인 수행 결과 처리
+        if (result.resultCode == RESULT_OK) {
 
-            oidcViewModel.isShowProgressBar.value = true
-
-            delay(100)
-
-            oidcViewModel.saveOidcServerUrl()
-
-            oidcViewModel.changeAppStatus( appStatus = AppStatus.REGISTERED)
-
-            oidcViewModel.isShowProgressBar.value = false
-
-            navController.navigate( Navigator.SCREEN_MAIN)
+            endLogin( result.data!!)
         }
     }
+
+    private fun startLogin() {
+        oidcViewModel.initMainError()
+
+        val intent = oidcHandler.getAuthorizationRedirectIntent()
+
+        loginLauncher.launch(intent)
+    }
+
+    private fun endLogin(data: Intent) {
+        var authorizationResponse: AuthorizationResponse? = AuthorizationResponse.fromIntent(data)
+        var ex: AuthorizationException? = AuthorizationException.fromIntent(data)
+
+        if (authorizationResponse == null) {
+            oidcViewModel.setMainError(getString(R.string.error_authorization_request), ex?.errorDescription.toString())
+        } else {
+            Log.i(ContentValues.TAG, "Authorization response received successfully")
+            Log.d(ContentValues.TAG, "CODE: ${authorizationResponse.authorizationCode}, STATE: ${authorizationResponse.state}")
+
+            lifecycleScope.launch {
+                if (authorizationResponse.authorizationCode != null) {
+                    oidcViewModel.showSnackBar.value = true
+
+                    var returnedTokenResponse = oidcHandler.redeemCodeForTokens(authorizationResponse)
+
+                    if(returnedTokenResponse != null ){
+                        val authResponseInfo = AuthResponseInfo( 1, returnedTokenResponse?.idToken, returnedTokenResponse?.accessToken, System.currentTimeMillis().toString())
+
+                        authResponseInfoRepository.insert( authResponseInfo = authResponseInfo)
+
+                        oidcViewModel.changeAppStatus( appStatus = AppStatus.LOGINED)
+                    }
+
+                }
+            }
+
+        }
+
+    }
+
+    private val logoutLancher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            endLogout(result.data!!)
+        }
+    }
+
+    private fun startLogout() {
+        oidcViewModel.initMainError()
+        val intent = oidcHandler.getEndSessionRedirectIntent()
+        this.logoutLancher.launch(intent)
+    }
+
+    private fun endLogout(data : Intent) {
+        var exception : AuthorizationException? = null
+
+        if (data != null) {
+            exception = AuthorizationException.fromIntent(data)
+        }
+
+        if (exception != null) {
+            oidcViewModel.setMainError(getString(R.string.error_end_session_request), exception.errorDescription.toString())
+        } else {
+            lifecycleScope.launch {
+                removeAuthResponseInfo()
+
+                oidcViewModel.changeAppStatus(AppStatus.LOGOUTED)
+
+                oidcViewModel.showSnackBar.value = true
+            }
+        }
+    }
+
+    private suspend fun removeAuthResponseInfo() {
+        val authResponseInfo = AuthResponseInfo(1,"","","")
+
+        authResponseInfoRepository.delete(authResponseInfo)
+    }
+
+
+
 }
 
 @Composable

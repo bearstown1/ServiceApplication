@@ -1,4 +1,4 @@
-package com.example.serviceapplication.service.appauth
+package com.example.serviceapplication.appauth
 
 import android.net.Uri
 import androidx.compose.runtime.MutableState
@@ -12,4 +12,7 @@ object OidcConfig {
     val scope = "openid profile"
 
     val metadata: MutableState<String> = mutableStateOf( "")
+
+    const val CLIENT_ID     = "oidc_mobile_id"
+    const val CLIENT_SECRET = "oyFI9TjrNiu7Y5_JsczCrWuZnKLhtTSNKzfOwZcLE7oYuscCCVgsn3xq4RrARslLxRPkO4WRpM1x6g2g115JPQ"
 }

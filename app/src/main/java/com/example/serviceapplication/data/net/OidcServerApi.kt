@@ -10,7 +10,7 @@ interface OidcServerApi {
 
     @FormUrlEncoded
     @POST("api/oidc/userinfo")
-    suspend fun getUserInfo(@Field("access_token") accessToken: String) : UserInfo
+    suspend fun getUserInfo(@Field("access_token") accessToken: String) : String
 
     @FormUrlEncoded
     @POST("api/sso/login/check")

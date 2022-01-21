@@ -46,6 +46,10 @@
         Then, you have to login again
     </string>
 
+    <string name="error_authorization_request">Authorization Request Error</string>
+    <string name="error_authorization_response">Authorization Response Error</string>
+    <string name="error_end_session_request">End Session Request Error</string>
+
     <!-- Main -->
     <string name="more">more</string>
     <string name="faq">FAQ</string>
@@ -56,6 +60,5 @@
 
     <!-- snack bar -->
     <string name="ok">OK</string>
-
 
 </resources>

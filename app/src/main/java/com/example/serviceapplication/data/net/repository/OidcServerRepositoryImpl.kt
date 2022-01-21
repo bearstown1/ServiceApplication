@@ -7,7 +7,7 @@ import com.example.serviceapplication.utils.logError
 import javax.inject.Inject
 
 class OidcServerRepositoryImpl @Inject constructor(private val oidcServerApi: OidcServerApi) : OidcServerRepository{
-    override suspend fun getUserInfo(accessToken: String): UserInfo? {
+    override suspend fun getUserInfo(accessToken: String): String? {
         try {
 
             return oidcServerApi.getUserInfo(accessToken)

@@ -5,7 +5,7 @@ import com.example.serviceapplication.data.model.UserInfo
 
 interface OidcServerRepository {
 
-    suspend fun getUserInfo( accessToken: String): UserInfo?
+    suspend fun getUserInfo( accessToken: String): String?
 
     suspend fun checkLoginWithIdToken( idToken: String): IdTokenValidResponseInfo?
 }

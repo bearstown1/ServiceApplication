@@ -10,9 +10,10 @@ import android.util.Log
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import androidx.work.*
 import com.example.serviceapplication.IOidcAidlInterface
-import com.example.serviceapplication.R
 import com.example.serviceapplication.data.AppStatus
 import com.example.serviceapplication.data.model.AuthResponseInfo
 import com.example.serviceapplication.data.repository.DataStoreRepository
@@ -22,15 +23,18 @@ import com.example.serviceapplication.event.OidcEventBus
 import com.example.serviceapplication.notification.getNotification
 import com.example.serviceapplication.receiver.AlarmReceiver
 import com.example.serviceapplication.utils.log
+import com.example.serviceapplication.utils.observeConnectivityAsFlow
 import com.example.serviceapplication.worker.CheckLoginWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.stateIn
 import java.util.*
 import javax.inject.Inject
 
+@ExperimentalComposeUiApi
 @AndroidEntryPoint
-class OidcService : Service() {
+class OidcService : LifecycleService() {
     @Inject
     lateinit var oidcEventBus: OidcEventBus
 
@@ -40,10 +44,11 @@ class OidcService : Service() {
     @Inject
     lateinit var tokenInfoRepository: AuthResponseInfoRepository
 
+    @Inject
+    lateinit var authResponseInfoRepository: AuthResponseInfoRepository
+
     private lateinit var notificationManager: NotificationManager
     private lateinit var alarmManager: AlarmManager
-
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
         const val CHANNEL_ID: String = "OIDC_CHANNEL"
@@ -64,102 +69,63 @@ class OidcService : Service() {
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
 
-        // unregisterRestartAlarm()
+        unregisterRestartAlarm()
 
         createNotificationChannel()
 
+        setupEventBusSubscriber()
+
+        observerAppStatus()
+
         isNotificationChannelEnabled()
 
-        // startPeriodicCheckToken()
-
-        // setupEventBusSubscriber()
-
-        testDataStoreRepository()
-
-        monitoringTokenInfo()
-
-/*        scope.launch(Dispatchers.IO) {
-            val tokenInfo = AuthResponseInfo( 1, "id", "access")
-
-            tokenInfoRepository.delete(authResponseInfo = tokenInfo)
-
-            delay(1000)
-            log( "token insert")
-            tokenInfoRepository.insert(authResponseInfo = tokenInfo)
-
-            delay(1000)
-
-            log( "token delete")
-            tokenInfoRepository.delete(authResponseInfo = tokenInfo)
-        }*/
-
+        monitoringNetworkState()
     }
 
-    private fun monitoringTokenInfo() {
-        scope.launch(Dispatchers.IO) {
-            tokenInfoRepository.get().collect {
-                log( "token info: ${ it.toString()}")
-            }
-        }
-    }
-    private fun testDataStoreRepository() {
-/*        scope.launch(Dispatchers.IO) {
-            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGINED)
+    private fun observerAppStatus() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            dataStoreRepository.readAppStatus.stateIn(lifecycleScope).collect {
+                log("dataStoreRepository.readAppStatus : ${it}")
 
-            dataStoreRepository.readAppStatus.collect {
-                log( "result of datastore : ${it} ")
-            }
-        }*/
+                if ( AppStatus.LOGINED.name == it) {
 
-        scope.launch(Dispatchers.IO) {
-            log("i will login..")
-            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGINED)
+                    startPeriodicCheckToken()
 
-            delay(1000)
+                } else if ( AppStatus.LOGOUTED.name == it) {
 
-            log("i will logout..")
-            dataStoreRepository.persistAppStatus(appStatus = AppStatus.LOGOUTED)
-
-            scope.launch {
-                delay(100)
-                log("i will get status 1")
-                dataStoreRepository.readAppStatus.collect {
-                    log("result of datastore_1 : ${it}-- ${System.currentTimeMillis()}")
-                }
-            }
-
-            scope.launch {
-                delay(5000)
-                log("i will get status 2...")
-                dataStoreRepository.readAppStatus.collect {
-                    log("result of datastore_2 : ${it}-- ${System.currentTimeMillis()}")
+                    stopPeriodicCheckToken()
                 }
             }
         }
-
     }
 
+
+
+    // Worker 구현 ----------------------------------------------------------------------------
     private fun startPeriodicCheckToken() {
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
-        val inputData = Data.Builder().putString(CheckLoginWorker.PARAM_KEY_ID_TOKEN, "TEST").build()
+        // todo: 제약 조건에 대해서 확인해 봐야 할 듯...
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType( NetworkType.CONNECTED)
+            .build()
 
+        // 기본적으로 15분에 한 번씩 물어봄
         val periodicWorkRequest = PeriodicWorkRequest.Builder(
             CheckLoginWorker::class.java,
             15,
             java.util.concurrent.TimeUnit.MINUTES
+        )
+            .setConstraints(constraints)
+            .build()
 
-        ).setInputData(inputData).setConstraints(constraints).build()
-
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+        WorkManager.getInstance( applicationContext).enqueueUniquePeriodicWork(
             CheckLoginWorker.WORKER_NAME,
             ExistingPeriodicWorkPolicy.REPLACE,
             periodicWorkRequest
         )
     }
-
     private fun setupEventBusSubscriber() {
-        scope.launch {
+        lifecycleScope.launch {
             oidcEventBus.subscribeEvent( OidcEvent.LOGOUT_BY_WORKER_EVENT,) {
                 log("oidcEventBus.subscribeEvent()")
                 logoutByWorkerEvent()
@@ -168,7 +134,45 @@ class OidcService : Service() {
     }
 
     private fun logoutByWorkerEvent() {
-        log( "logoutByWorkerEvent")
+
+        lifecycleScope.launch(Dispatchers.IO){
+            removeAuthResponseInfo()
+
+            dataStoreRepository.persistAppStatus(AppStatus.LOGOUTED)
+
+        }
+
+        sendLogoutBroadCast()
+
+        notifyLogoutAppStatus()
+
+    }
+
+    private fun sendLogoutBroadCast() {
+        val intent = Intent()
+        intent.action = "com.example.serviceapplication.BANDI_OIDC_LOGOUT"
+
+        sendBroadcast(intent)
+    }
+
+
+    private fun notifyLogoutAppStatus() {
+        if ( IS_RUNNING) {
+            notificationManager?.notify(
+                SERVICE_ID,
+                getNotification(
+                    applicationContext,
+                    AppStatus.LOGOUTED.name
+                )
+            )
+        }
+    }
+
+    private suspend fun removeAuthResponseInfo() {
+        val authResponseInfo = AuthResponseInfo(1,"","","")
+
+        authResponseInfoRepository.delete(authResponseInfo)
+
     }
 
 
@@ -194,8 +198,8 @@ class OidcService : Service() {
 
     }
 
-    @ExperimentalComposeUiApi
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
 
         log("OidcService.onStartCommand()")
 
@@ -303,7 +307,32 @@ class OidcService : Service() {
 
     }
 
+    fun monitoringNetworkState() {
+
+        lifecycleScope.launch( Dispatchers.IO) {
+            applicationContext.observeConnectivityAsFlow().stateIn( lifecycleScope).collect {
+                log( "Network connection state : $it")
+            }
+        }
+    }
+
     override fun onBind(intent: Intent): IBinder {
+        super.onBind( intent)
+
+        val binder = object : IOidcAidlInterface.Stub() {
+            override fun isLogined(): Boolean {
+
+                // todo: Biz Logic
+                return true
+            }
+
+            override fun getUserInfo(): String {
+
+                // todo: Biz Logic
+                return "hello world"
+            }
+        }
+
         return binder
     }
 

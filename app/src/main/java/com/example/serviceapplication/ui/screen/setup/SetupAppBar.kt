@@ -3,6 +3,7 @@ package com.example.serviceapplication.ui.screen.setup
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.*
 import com.example.serviceapplication.R
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -28,6 +29,14 @@ fun SetupAppBar(
     var openDialog by remember{ mutableStateOf( false) }
 
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    var isUpdatable by remember {
+        mutableStateOf(AppStatus.INIT == appStatus)
+    }
+
+    LaunchedEffect(key1 = oidcViewModel.oidcServerUrl.value) {
+        isUpdatable = oidcViewModel.oidcServerUrl.value != oidcViewModel.savedOidcServerUrl
+    }
 
     TopAppBar(
         navigationIcon = {
@@ -56,12 +65,16 @@ fun SetupAppBar(
                     }
                 )
 
-                UpdateAction( saveOidcServerUrlBtnClicked = {
-                    openDialog = true
-                })
+                UpdateAction(
+                    isUpdatable = isUpdatable,
+                    saveOidcServerUrlBtnClicked = {
+                        openDialog = true
+                    }
+                )
 
             } else {
                 UpdateAction(
+                    isUpdatable= isUpdatable,
                     saveOidcServerUrlBtnClicked = saveOidcServerUrlBtnClicked
                 )
             }
@@ -72,16 +85,23 @@ fun SetupAppBar(
 @ExperimentalComposeUiApi
 @Composable
 fun UpdateAction(
+    isUpdatable: Boolean,
     saveOidcServerUrlBtnClicked: () -> Unit
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    val icon = if ( isUpdatable) {
+        Icons.Filled.Check
+    } else {
+        Icons.Filled.Lock
+    }
 
     IconButton( onClick = {
         keyboardController?.hide()
         saveOidcServerUrlBtnClicked()
     }) {
         Icon(
-            imageVector = Icons.Filled.Check,
+            imageVector = icon,
             contentDescription = stringResource(id = R.string.update_icon),
             tint = MaterialTheme.colors.topAppBarContentColor
         )

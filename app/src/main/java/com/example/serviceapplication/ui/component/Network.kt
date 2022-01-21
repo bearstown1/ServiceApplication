@@ -3,12 +3,15 @@ package com.example.serviceapplication.ui.component
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.example.serviceapplication.utils.ConnectionState
 import com.example.serviceapplication.utils.currentConnectivityState
 import com.example.serviceapplication.utils.observeConnectivityAsFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.stateIn
 
 
 @Composable
@@ -22,7 +25,9 @@ fun currentConnectionState(): ConnectionState {
 fun connectivityState(): State<ConnectionState> {
     val context = LocalContext.current
     return produceState(initialValue = context.currentConnectivityState) {
-        context.observeConnectivityAsFlow().distinctUntilChanged().collect {
+        val coroutineScope = ProcessLifecycleOwner.get().lifecycleScope
+
+        context.observeConnectivityAsFlow().distinctUntilChanged().stateIn(coroutineScope).collect {
             value = it
         }
     }
